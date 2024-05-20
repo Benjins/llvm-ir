@@ -73,6 +73,10 @@ wrap_with_len!(LLVMGetValueName2, LLVMValueRef, get_value_name);
 wrap_maybe_null!(LLVMGetStructName, LLVMTypeRef, get_struct_name);
 wrap_maybe_null!(LLVMGetSection, LLVMValueRef, get_section);
 wrap_maybe_null!(LLVMGetGC, LLVMValueRef, get_gc);
+#[cfg(feature = "llvm-18-or-greater")]
+wrap_with_len_maybe_null!(LLVMGetInlineAsmAsmString, LLVMValueRef, get_inline_asm_template);
+#[cfg(feature = "llvm-18-or-greater")]
+wrap_with_len_maybe_null!(LLVMGetInlineAsmConstraintString, LLVMValueRef, get_inline_asm_constraints);
 wrap!(LLVMGetBasicBlockName, LLVMBasicBlockRef, get_bb_name);
 wrap!(LLVMPrintValueToString, LLVMValueRef, print_to_string);
 // wrap!(LLVMPrintTypeToString, LLVMTypeRef, print_type_to_string);

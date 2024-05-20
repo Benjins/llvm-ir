@@ -2391,33 +2391,31 @@ impl Display for MemoryOrdering {
     }
 }
 
-// --TODO this seems to be the data structure we want. But see notes on
-// InlineAssembly::from_llvm_ref()
-/*
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub struct InlineAssembly {
-    pub assembly: String,
-    pub ty: TypeRef,
-    pub constraints: String,
-    pub has_side_effects: bool,
-    pub align_stack: bool,
-    pub dialect: AssemblyDialect,
-}
-
+#[cfg(feature = "llvm-18-or-greater")]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum AssemblyDialect {
     ATT,
     Intel,
 }
-*/
-// Instead we have this for now
-/// See [LLVM 14 docs on Inline Assembler Expressions](https://releases.llvm.org/14.0.0/docs/LangRef.html#inline-assembler-expressions)
-///
-/// `InlineAssembly` needs more fields, but the necessary getter functions are
-/// apparently not exposed in the LLVM C API (only the C++ API)
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct InlineAssembly {
     pub ty: TypeRef,
+
+    #[cfg(feature = "llvm-18-or-greater")]
+    pub assembly: String,
+    #[cfg(feature = "llvm-18-or-greater")]
+    pub constraints: String,
+    #[cfg(feature = "llvm-18-or-greater")]
+    pub function_ty: TypeRef,
+    #[cfg(feature = "llvm-18-or-greater")]
+    pub can_unwind: bool,
+    #[cfg(feature = "llvm-18-or-greater")]
+    pub has_side_effects: bool,
+    #[cfg(feature = "llvm-18-or-greater")]
+    pub needs_aligned_stack: bool,
+    #[cfg(feature = "llvm-18-or-greater")]
+    pub dialect: AssemblyDialect,
 }
 
 impl Typed for InlineAssembly {
@@ -3485,6 +3483,16 @@ impl RMWBinOp {
     }
 }
 
+#[cfg(feature = "llvm-18-or-greater")]
+impl AssemblyDialect {
+   pub(crate) fn from_llvm(dialect : llvm_sys::LLVMInlineAsmDialect) -> Self {
+       match dialect {
+           llvm_sys::LLVMInlineAsmDialect::LLVMInlineAsmDialectATT => Self::ATT,
+           llvm_sys::LLVMInlineAsmDialect::LLVMInlineAsmDialectIntel => Self::Intel,
+       }
+   }
+}
+
 impl InlineAssembly {
     pub(crate) fn from_llvm_ref(asm: LLVMValueRef, types: &mut TypesBuilder) -> Self {
         // The LLVM C API appears to have no way to get any information about an
@@ -3493,6 +3501,21 @@ impl InlineAssembly {
         // other related methods
         Self {
             ty: types.type_from_llvm_ref(unsafe { LLVMTypeOf(asm) }),
+
+            #[cfg(feature = "llvm-18-or-greater")]
+            assembly: unsafe { get_inline_asm_template(asm) }.unwrap(),
+            #[cfg(feature = "llvm-18-or-greater")]
+            constraints: unsafe { get_inline_asm_constraints(asm) }.unwrap(),
+            #[cfg(feature = "llvm-18-or-greater")]
+            function_ty: types.type_from_llvm_ref(unsafe { LLVMGetInlineAsmFunctionType(asm) }),
+            #[cfg(feature = "llvm-18-or-greater")]
+            can_unwind: unsafe { LLVMGetInlineAsmCanUnwind(asm) } != 0,
+            #[cfg(feature = "llvm-18-or-greater")]
+            has_side_effects: unsafe { LLVMGetInlineAsmHasSideEffects(asm) } != 0,
+            #[cfg(feature = "llvm-18-or-greater")]
+            needs_aligned_stack: unsafe { LLVMGetInlineAsmNeedsAlignedStack(asm) } != 0,
+            #[cfg(feature = "llvm-18-or-greater")]
+            dialect: AssemblyDialect::from_llvm(unsafe { LLVMGetInlineAsmDialect(asm) })
         }
     }
 }
