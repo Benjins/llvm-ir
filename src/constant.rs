@@ -1084,6 +1084,8 @@ pub struct GetElementPtr {
     pub address: ConstantRef,
     pub indices: Vec<ConstantRef>,
     pub in_bounds: bool,
+    #[cfg(feature = "llvm-14-or-greater")]
+    pub source_element_type: TypeRef,
 }
 
 impl_constexpr!(GetElementPtr, GetElementPtr);
@@ -1791,6 +1793,10 @@ impl GetElementPtr {
                     .map(|i| Constant::from_llvm_ref(unsafe { LLVMGetOperand(expr, i) }, ctx))
                     .collect()
             },
+            #[cfg(feature = "llvm-14-or-greater")]
+            source_element_type: ctx
+                .types
+                .type_from_llvm_ref(unsafe { LLVMGetGEPSourceElementType(expr) }),
             in_bounds: unsafe { LLVMIsInBounds(expr) } != 0,
         }
     }
